@@ -27,7 +27,7 @@ word_re = re.compile(r'\w+', re.U)
 def normalize(ctx):
     left, _, right = ctx
     text = ' '.join([left, right]).strip()
-   #text = re.sub(r'\d', '2', text)
+    text = re.sub(r'\d', '2', text)
     return [w for w in MyStem.lemmatize(' '.join(word_re.findall(text)))
             if w not in stopwords and w.strip()]
 

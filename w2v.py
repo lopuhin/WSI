@@ -9,7 +9,8 @@ import kmeans
 import utils
 
 
-def word_clusters_neighbours(w2v, word, n_senses):
+def word_clusters_neighbours(w2v, word, n_senses, *, window):
+    assert window
     similar = w2v.most_similar(positive=[word], topn=100)
     words = np.array([w for w, _ in similar])
     word_vectors = np.array([w2v[w] for w in words])
@@ -19,9 +20,9 @@ def word_clusters_neighbours(w2v, word, n_senses):
 word_clusters_neighbours.threshold = 0.75
 
 
-def word_clusters_ctx(w2v, word, n_senses, min_weight=2.0, min_count=20):
-    weights = utils.load_weights('../corpora/ad-nouns/cdict/', word)
-    contexts = utils.load_contexts('../corpora/ad-nouns-contexts-100k', word)
+def word_clusters_ctx(w2v, word, n_senses, min_weight=1.5, min_count=20, *,
+                      window):
+    weights, contexts = utils.weights_contexts(word, window)
     words = [
         w for w, cnt in Counter(w for ctx in contexts for w in ctx).items()
         if cnt >= min_count and weights.get(w, 0) > min_weight and w in w2v]
@@ -39,7 +40,7 @@ def print_senses(w2v, sense_words, topn=5):
         print(sense_id, ' '.join(words[:topn]))
 
 
-def run_all(*, clustering, model, word, n_runs, n_senses):
+def run_all(*, clustering, model, word, n_runs, n_senses, window):
     clustering_fn = globals()['word_clusters_' + clustering]
     w2v = Word2Vec.load(model)
     words = [word] if word else utils.all_words
@@ -47,7 +48,7 @@ def run_all(*, clustering, model, word, n_runs, n_senses):
         print()
         print(word)
         for _ in range(n_runs):
-            words, km = clustering_fn(w2v, word, n_senses)
+            words, km = clustering_fn(w2v, word, n_senses, window=window)
             sense_words = {
                 sense_id: list(words[km.Xtocentre == sense_id])
                 for sense_id in range(n_senses)}
@@ -69,6 +70,7 @@ def main():
     arg('--n-senses', type=int, default=6)
     arg('--n-runs', type=int, default=1)
     arg('--model', default='model.pkl')
+    arg('--window', type=int, default=10)
     arg('--word')
     params = vars(parser.parse_args())
     print(params)

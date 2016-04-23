@@ -38,10 +38,25 @@ def load_stopwords():
 stopwords = load_stopwords()
 
 
-def load_contexts(root, word):
+def load_contexts(root, word, window=None):
     with open(os.path.join(root, '{}.txt'.format(word))) as f:
-        return [[w for w in line.strip().split()
-                 if w not in stopwords and w != word] for line in f]
+        contexts = []
+        for line in f:
+            left, _, right = line.split('\t')
+            left, right = [x.strip().split() for x in [left, right]]
+            if window:
+                left = left[-window:]
+                right = right[:window]
+            ctx = left + right
+            contexts.append(
+                [w for w in ctx if w not in stopwords and w != word])
+        return contexts
+
+
+def weights_contexts(word, window):
+    weights = load_weights('../corpora/ad-nouns/cdict/', word)
+    contexts = load_contexts('../corpora/ad-nouns-contexts-100k', word, window)
+    return weights, contexts
 
 
 word_re = re.compile(r'\w+', re.U)

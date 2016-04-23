@@ -16,17 +16,16 @@ from sklearn.metrics import v_measure_score, adjusted_rand_score
 import utils
 
 
-def word_lda(word, num_topics, limit=None):
-    weights = utils.load_weights('../corpora/ad-nouns/cdict/', word)
-    texts = utils.load_contexts('../corpora/ad-nouns-contexts-100k', word)
-    weights_flt = lambda ctx: [w for w in ctx if weights.get(w, 0) > 1]
-    texts = list(map(weights_flt, texts))
-    texts = [ctx for ctx in texts if ctx]
-    random.shuffle(texts)
+def word_lda(word, num_topics, window, limit=None, min_weight=1.0):
+    weights, contexts = utils.weights_contexts(word, window)
+    weights_flt = lambda ctx: \
+        [w for w in ctx if weights.get(w, 0) > min_weight]
+    contexts = [ctx for ctx in map(weights_flt, contexts) if ctx]
+    random.shuffle(contexts)
     if limit:
-        texts = texts[:limit]
-    dictionary = corpora.Dictionary(texts)
-    corpus = [dictionary.doc2bow(text) for text in texts]
+        contexts = contexts[:limit]
+    dictionary = corpora.Dictionary(contexts)
+    corpus = [dictionary.doc2bow(ctx) for ctx in contexts]
 
     #lda = HdpModel(corpus, id2word=dictionary)
     lda = LdaModel(
@@ -63,13 +62,14 @@ def print_cluster_sim(lda, dictionary):
     utils.print_cluster_sim(np.array(topics))
 
 
-def run_all(*, word, n_runs, limit, n_senses):
+def run_all(*, word, n_runs, limit, n_senses, window):
     words = [word] if word else utils.all_words
     futures = []
     with ProcessPoolExecutor(max_workers=4) as e:
         for word in words:
             futures.extend(
-                (word, e.submit(word_lda, word, n_senses, limit=limit))
+                (word, e.submit(
+                    word_lda, word, n_senses, limit=limit, window=window))
                 for _ in range(n_runs))
     results_by_word = defaultdict(list)
     for word, f in futures:
@@ -101,6 +101,7 @@ def main():
     arg('--n-senses', type=int, default=6)
     arg('--limit', type=int)
     arg('--n-runs', type=int, default=3)
+    arg('--window', type=int, default=10)
     arg('--word')
     params = vars(parser.parse_args())
     print(params)

@@ -60,10 +60,32 @@ def load_weights(root, word):
         return {w: float(weight) for w, weight in (l.split() for l in f)}
 
 
-def print_cluster_sim(centres):
-    sim_matrix = cosine_similarity(centres, centres)
+def print_cluster_sim(centers):
+    sim_matrix = cosine_similarity(centers, centers)
     print(' '.join('{}   '.format(j) for j, _ in enumerate(sim_matrix)))
     for i, row in enumerate(sim_matrix):
         print(' '.join(
             ('{:.2f}'.format(x) if i < j else '    ')
             for j, x in enumerate(row)), i)
+
+
+def merge_clusters(centers, threshold):
+    ''' Merge clusters that are closer then given threshold.
+    Return mapping: old clusters -> new clusters.
+    '''
+    sim_matrix = cosine_similarity(centers, centers)
+    mapping = {i: i for i, _ in enumerate(centers)}
+    id_gen = len(mapping)
+    for i, row in enumerate(sim_matrix):
+        for j, sim in enumerate(row):
+            if i > j and sim >= threshold:
+                # merge (i, j)
+                new_id = id_gen
+                id_gen += 1
+                for id_old in [i, j]:
+                    old_new = mapping[id_old]
+                    for old, new in list(mapping.items()):
+                        if new == old_new:
+                            mapping[old] = new_id
+    remap = {new: i for i, new in enumerate(set(mapping.values()))}
+    return {old: remap[new] for old, new in mapping.items()}

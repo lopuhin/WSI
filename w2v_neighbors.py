@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+from collections import defaultdict
 
 import numpy as np
 from gensim.models import Word2Vec
@@ -16,11 +17,10 @@ def word_clusters(w2v, word, n_senses):
     return words, km
 
 
-def print_senses(w2v, words, km, n_senses, topn=5):
-    for sense in range(n_senses):
-        sense_words = list(words[km.Xtocentre == sense])
-        sense_words.sort(key=lambda w: w2v.vocab[w].count, reverse=True)
-        print(sense, ' '.join(sense_words[:topn]))
+def print_senses(w2v, sense_words, topn=5):
+    for sense_id, words in sorted(sense_words.items()):
+        words.sort(key=lambda w: w2v.vocab[w].count, reverse=True)
+        print(sense_id, ' '.join(words[:topn]))
 
 
 def run_all(*, model, word, n_runs, n_senses):
@@ -31,8 +31,17 @@ def run_all(*, model, word, n_runs, n_senses):
         print(word)
         for _ in range(n_runs):
             words, km = word_clusters(w2v, word, n_senses)
-            print_senses(w2v, words, km, n_senses)
+            sense_words = {
+                sense_id: list(words[km.Xtocentre == sense_id])
+                for sense_id in range(n_senses)}
+            print_senses(w2v, sense_words)
             utils.print_cluster_sim(km.centres)
+            mapping = utils.merge_clusters(km.centres, threshold=0.75)
+            print(mapping)
+            merged_sense_words = defaultdict(list)
+            for sense_id, words in sense_words.items():
+                merged_sense_words[mapping[sense_id]].extend(words)
+            print_senses(w2v, merged_sense_words)
 
 
 def main():

@@ -15,7 +15,7 @@ from sklearn.metrics import v_measure_score, adjusted_rand_score
 import utils
 
 
-def word_lda(word, num_topics=6, limit=None):
+def word_lda(word, num_topics, limit=None):
     weights = utils.load_weights('../corpora/ad-nouns/cdict/', word)
     texts = utils.load_contexts('../corpora/ad-nouns-contexts-100k', word)
     weights_flt = lambda ctx: [w for w in ctx if weights.get(w, 0) > 1]
@@ -45,19 +45,20 @@ def word_lda(word, num_topics=6, limit=None):
     return lda, dictionary, ari, v_score
 
 
-def print_topics(lda, dictionary):
+def print_topics(lda, dictionary, topn=5):
     for topic_id in range(lda.num_topics):
-        terms = lda.get_topic_terms(topic_id, topn=5)
+        terms = lda.get_topic_terms(topic_id, topn=topn)
         print(topic_id, ' '.join(dictionary[wid] for wid, _ in terms))
 
 
-def run_all(word=None, n_runs=3, limit=None):
+def run_all(*, word, n_runs, limit, n_senses):
+    words = [word] if word else utils.all_words
     futures = []
-    words = [word] if word else all_words
     with ProcessPoolExecutor(max_workers=4) as e:
         for word in words:
-            futures.extend((word, e.submit(word_lda, word, limit=limit))
-                           for _ in range(n_runs))
+            futures.extend(
+                (word, e.submit(word_lda, word, n_senses, limit=limit))
+                for _ in range(n_runs))
     results_by_word = defaultdict(list)
     for word, f in futures:
         results_by_word[word].append(f.result())
@@ -80,22 +81,11 @@ def run_all(word=None, n_runs=3, limit=None):
             np.mean(aris), np.mean(v_scores)))
 
 
-
-all_words = [
-    'альбом',
-    'билет',
-    'блок',
-    'вешалка',
-    'вилка',
-    'винт',
-    'горшок',
-    ]
-
-
 def main():
     logging.basicConfig(level=logging.WARNING)
     parser = argparse.ArgumentParser()
     arg = parser.add_argument
+    arg('--n-senses', type=int, default=6)
     arg('--limit', type=int)
     arg('--n-runs', type=int, default=3)
     arg('--word')

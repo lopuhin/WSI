@@ -4,6 +4,17 @@ import re
 import pymystem3
 
 
+all_words = [
+    'альбом',
+    'билет',
+    'блок',
+    'вешалка',
+    'вилка',
+    'винт',
+    'горшок',
+    ]
+
+
 MyStem = pymystem3.Mystem()
 
 

@@ -31,7 +31,7 @@ def word_lda(word, num_topics, limit=None):
     #lda = HdpModel(corpus, id2word=dictionary)
     lda = LdaModel(
         corpus, id2word=dictionary, num_topics=num_topics,
-        passes=3, iterations=100, alpha='auto')
+        passes=4, iterations=100, alpha='auto')
 
     _senses, contexts = rl_wsd_labeled.get_contexts(
         rl_wsd_labeled.contexts_filename('nouns', 'RuTenTen', word))

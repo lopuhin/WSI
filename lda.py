@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import logging
+import argparse
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
@@ -48,25 +49,37 @@ def print_topics(lda, dictionary):
         print(topic_id, ' '.join(dictionary[wid] for wid, _ in terms))
 
 
-def run_all(n_runs=3, limit=None):
-    print('limit', limit)
+def run_all(word=None, n_runs=3, limit=None):
     futures = []
+    words = [word] if word else all_words
     with ProcessPoolExecutor(max_workers=4) as e:
-        for word in words_1:
+        for word in words:
             futures.extend((word, e.submit(word_lda, word, limit=limit))
                            for _ in range(n_runs))
     results_by_word = defaultdict(list)
     for word, f in futures:
         results_by_word[word].append(f.result())
+    aris, v_scores = [], []
     for word, results in results_by_word.items():
         print()
         print(word)
+        word_aris, word_v_scores = [], []
         for lda, dictionary, ari, v_score in results:
             print_topics(lda, dictionary)
             print('ARI: {:.3f}, V-score: {:.3f}'.format(ari, v_score))
+            word_aris.append(ari)
+            word_v_scores.append(v_score)
+        print('ARI: {:.3f}, V-score: {:.3f}'.format(
+              np.mean(word_aris), np.mean(word_v_scores)))
+        aris.extend(word_aris)
+        v_scores.extend(word_v_scores)
+    print()
+    print('ARI: {:.3f}, V-score: {:.3f}'.format(
+            np.mean(aris), np.mean(v_scores)))
 
 
-words_1 = [
+
+all_words = [
     'альбом',
     'билет',
     'блок',
@@ -78,8 +91,15 @@ words_1 = [
 
 
 def main():
-   #logging.basicConfig(level=logging.INFO)
-    run_all(limit=30000)
+    logging.basicConfig(level=logging.WARNING)
+    parser = argparse.ArgumentParser()
+    arg = parser.add_argument
+    arg('--limit', type=int)
+    arg('--n-runs', type=int, default=3)
+    arg('--word')
+    params = vars(parser.parse_args())
+    print(params)
+    run_all(**params)
 
 
 if __name__ == '__main__':

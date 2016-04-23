@@ -2,6 +2,7 @@
 import logging
 import argparse
 import random
+import os.path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
@@ -32,17 +33,19 @@ def word_lda(word, num_topics, window, limit=None, min_weight=1.0):
         corpus, id2word=dictionary, num_topics=num_topics,
         passes=4, iterations=100, alpha='auto')
 
-    _senses, contexts = rl_wsd_labeled.get_contexts(
-        rl_wsd_labeled.contexts_filename('nouns', 'RuTenTen', word))
+    labeled_fname = rl_wsd_labeled.contexts_filename('nouns', 'RuTenTen', word)
+    if os.path.exists(labeled_fname):
+        _senses, contexts = rl_wsd_labeled.get_contexts(labeled_fname)
+        documents = [dictionary.doc2bow(weights_flt(utils.normalize(ctx)))
+                    for ctx, _ in contexts]
+        gamma, _ = lda.inference(documents)
+        pred_topics = gamma.argmax(axis=1)
+        true_labels = np.array([int(ans) for _, ans in contexts])
 
-    documents = [dictionary.doc2bow(weights_flt(utils.normalize(ctx)))
-                 for ctx, _ in contexts]
-    gamma, _ = lda.inference(documents)
-    pred_topics = gamma.argmax(axis=1)
-    true_labels = np.array([int(ans) for _, ans in contexts])
-
-    ari = adjusted_rand_score(true_labels, pred_topics)
-    v_score = v_measure_score(true_labels, pred_topics)
+        ari = adjusted_rand_score(true_labels, pred_topics)
+        v_score = v_measure_score(true_labels, pred_topics)
+    else:
+        ari = v_score = None
     return lda, dictionary, ari, v_score
 
 
@@ -82,16 +85,19 @@ def run_all(*, word, n_runs, limit, n_senses, window):
         for lda, dictionary, ari, v_score in results:
             print_topics(lda, dictionary)
             print_cluster_sim(lda, dictionary)
-            print('ARI: {:.3f}, V-score: {:.3f}'.format(ari, v_score))
-            word_aris.append(ari)
-            word_v_scores.append(v_score)
-        print('ARI: {:.3f}, V-score: {:.3f}'.format(
-              np.mean(word_aris), np.mean(word_v_scores)))
+            if ari is not None and v_score is not None:
+                print('ARI: {:.3f}, V-score: {:.3f}'.format(ari, v_score))
+                word_aris.append(ari)
+                word_v_scores.append(v_score)
+        if word_aris and word_v_scores:
+            print('ARI: {:.3f}, V-score: {:.3f}'.format(
+                np.mean(word_aris), np.mean(word_v_scores)))
         aris.extend(word_aris)
         v_scores.extend(word_v_scores)
-    print()
-    print('ARI: {:.3f}, V-score: {:.3f}'.format(
-            np.mean(aris), np.mean(v_scores)))
+    if aris and v_scores:
+        print()
+        print('ARI: {:.3f}, V-score: {:.3f}'.format(
+                np.mean(aris), np.mean(v_scores)))
 
 
 def main():

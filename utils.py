@@ -6,6 +6,7 @@ import pymystem3
 
 
 all_words = [
+    # multiple dictionary senses
     'альбом',
     'билет',
     'блок',
@@ -13,6 +14,16 @@ all_words = [
     'вилка',
     'винт',
     'горшок',
+    # single sense in the dictionary
+    'вата',
+    'бык',
+    'байка',
+    'баян',
+    'бомба',
+    # really single sense
+    'борщ',
+    'воск',
+    'бухгалтер',
     ]
 
 

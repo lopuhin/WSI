@@ -53,6 +53,16 @@ def print_topics(lda, dictionary, topn=5):
         print(topic_id, ' '.join(dictionary[wid] for wid, _ in terms))
 
 
+def print_cluster_sim(lda, dictionary):
+    topics = []
+    for topic_id in range(lda.num_topics):
+        topic = np.zeros(len(dictionary))
+        topics.append(topic)
+        for idx, v in lda.get_topic_terms(topic_id, topn=len(dictionary)):
+            topic[idx] = v
+    utils.print_cluster_sim(np.array(topics))
+
+
 def run_all(*, word, n_runs, limit, n_senses):
     words = [word] if word else utils.all_words
     futures = []
@@ -71,6 +81,7 @@ def run_all(*, word, n_runs, limit, n_senses):
         word_aris, word_v_scores = [], []
         for lda, dictionary, ari, v_score in results:
             print_topics(lda, dictionary)
+            print_cluster_sim(lda, dictionary)
             print('ARI: {:.3f}, V-score: {:.3f}'.format(ari, v_score))
             word_aris.append(ari)
             word_v_scores.append(v_score)

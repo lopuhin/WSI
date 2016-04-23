@@ -1,6 +1,7 @@
 import os.path
 import re
 
+from sklearn.metrics.pairwise import cosine_similarity
 import pymystem3
 
 
@@ -46,3 +47,12 @@ def normalize(ctx):
 def load_weights(root, word):
     with open(os.path.join(root, word + '.txt')) as f:
         return {w: float(weight) for w, weight in (l.split() for l in f)}
+
+
+def print_cluster_sim(centres):
+    sim_matrix = cosine_similarity(centres, centres)
+    print(' '.join('{}   '.format(j) for j, _ in enumerate(sim_matrix)))
+    for i, row in enumerate(sim_matrix):
+        print(' '.join(
+            ('{:.2f}'.format(x) if i < j else '    ')
+            for j, x in enumerate(row)), i)

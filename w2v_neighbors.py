@@ -32,6 +32,7 @@ def run_all(*, model, word, n_runs, n_senses):
         for _ in range(n_runs):
             words, km = word_clusters(w2v, word, n_senses)
             print_senses(w2v, words, km, n_senses)
+            utils.print_cluster_sim(km.centres)
 
 
 def main():

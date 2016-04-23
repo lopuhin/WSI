@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import logging
 import argparse
+import random
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 
@@ -21,6 +22,7 @@ def word_lda(word, num_topics, limit=None):
     weights_flt = lambda ctx: [w for w in ctx if weights.get(w, 0) > 1]
     texts = list(map(weights_flt, texts))
     texts = [ctx for ctx in texts if ctx]
+    random.shuffle(texts)
     if limit:
         texts = texts[:limit]
     dictionary = corpora.Dictionary(texts)

@@ -18,7 +18,8 @@ import utils
 def word_lda(word, num_topics=6, limit=None):
     weights = utils.load_weights('../corpora/ad-nouns/cdict/', word)
     texts = utils.load_contexts('../corpora/ad-nouns-contexts-100k', word)
-    texts = [[w for w in ctx if weights.get(w, 0) > 1] for ctx in texts]
+    weights_flt = lambda ctx: [w for w in ctx if weights.get(w, 0) > 1]
+    texts = list(map(weights_flt, texts))
     texts = [ctx for ctx in texts if ctx]
     if limit:
         texts = texts[:limit]
@@ -33,7 +34,8 @@ def word_lda(word, num_topics=6, limit=None):
     _senses, contexts = rl_wsd_labeled.get_contexts(
         rl_wsd_labeled.contexts_filename('nouns', 'RuTenTen', word))
 
-    documents = [dictionary.doc2bow(utils.normalize(ctx)) for ctx, _ in contexts]
+    documents = [dictionary.doc2bow(weights_flt(utils.normalize(ctx)))
+                 for ctx, _ in contexts]
     gamma, _ = lda.inference(documents)
     pred_topics = gamma.argmax(axis=1)
     true_labels = np.array([int(ans) for _, ans in contexts])

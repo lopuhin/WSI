@@ -1,16 +1,9 @@
 #!/usr/bin/env python
 import logging
 import argparse
-import random
 import os.path
-from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor
-from functools import partial
 
 import numpy as np
-from gensim import corpora
-# from gensim.models.ldamulticore import LdaMulticore as LdaModel
-# from gensim.models import HdpModel
 from gensim.models import LdaModel
 import rl_wsd_labeled
 from sklearn.metrics import v_measure_score, adjusted_rand_score
@@ -18,24 +11,13 @@ from sklearn.metrics import v_measure_score, adjusted_rand_score
 import utils
 
 
-def word_lda(word, num_topics, window, limit=None, min_weight=1.0):
-    weights, contexts = utils.weights_contexts(word, window)
-    weights_flt = partial(_weights_flt, weights, min_weight)
-    contexts = [ctx for ctx in map(weights_flt, contexts) if ctx]
-    random.shuffle(contexts)
-    if limit:
-        contexts = contexts[:limit]
-    print(len(contexts))
-    dictionary = corpora.Dictionary(contexts)
-    corpus = [dictionary.doc2bow(ctx) for ctx in contexts]
+def word_lda(word, num_topics, window, limit=None):
+    dictionary, corpus, weights_flt = \
+        utils.prepare_corpus(word, window=window, limit=limit)
     lda = LdaModel(
         corpus, id2word=dictionary, num_topics=num_topics,
         passes=4, iterations=100, alpha='auto')
     return lda, dictionary, weights_flt
-
-
-def _weights_flt(weights, min_weight, ctx):
-    return [w for w in ctx if weights.get(w, 0) > min_weight]
 
 
 def get_scores(lda, dictionary, word, weights_flt, mapping=None):
@@ -55,12 +37,6 @@ def get_scores(lda, dictionary, word, weights_flt, mapping=None):
         return ari, v_score
 
 
-def print_topics(lda, dictionary, topn=5):
-    for topic_id in range(lda.num_topics):
-        terms = lda.get_topic_terms(topic_id, topn=topn)
-        print(topic_id, ' '.join(dictionary[wid] for wid, _ in terms))
-
-
 def lda_centers(lda, dictionary):
     topics = []
     for topic_id in range(lda.num_topics):
@@ -73,16 +49,9 @@ def lda_centers(lda, dictionary):
 
 def run_all(*, word, n_runs, limit, n_senses, window):
     words = [word] if word else utils.all_words
-    futures = []
-    with ProcessPoolExecutor(max_workers=4) as e:
-        for word in words:
-            futures.extend(
-                (word, e.submit(
-                    word_lda, word, n_senses, limit=limit, window=window))
-                for _ in range(n_runs))
-    results_by_word = defaultdict(list)
-    for word, f in futures:
-        results_by_word[word].append(f.result())
+    results_by_word = utils.apply_to_words(
+        word_lda, words, n_runs,
+        n_senses=n_senses, limit=limit, window=window)
     merge_threshold = 0.2
     print('threshold', merge_threshold, sep='\t')
     aris, v_scores = [], []

@@ -1,8 +1,13 @@
 import os.path
+import random
 import re
+from functools import partial
+from concurrent.futures import ProcessPoolExecutor
+from collections import defaultdict
 
-from sklearn.metrics.pairwise import cosine_similarity
+from gensim import corpora
 import pymystem3
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 all_words = [
@@ -111,3 +116,33 @@ def merge_clusters(centers, threshold):
                             mapping[old] = new_id
     remap = {new: i for i, new in enumerate(set(mapping.values()))}
     return {old: remap[new] for old, new in mapping.items()}
+
+
+def weights_flt(weights, min_weight, ctx):
+    return [w for w in ctx if weights.get(w, 0) > min_weight]
+
+
+def prepare_corpus(word, *, window, min_weight=1.0, limit=None):
+    weights, contexts = weights_contexts(word, window)
+    _weights_flt = partial(weights_flt, weights, min_weight)
+    contexts = [ctx for ctx in map(weights_flt, contexts) if ctx]
+    random.shuffle(contexts)
+    if limit:
+        contexts = contexts[:limit]
+    print(len(contexts))
+    dictionary = corpora.Dictionary(contexts)
+    corpus = [dictionary.doc2bow(ctx) for ctx in contexts]
+    return dictionary, corpus, _weights_flt
+
+
+def apply_to_words(fn, words, n_runs, **kwargs):
+    futures = []
+    with ProcessPoolExecutor(max_workers=4) as e:
+        for word in words:
+            futures.extend(
+                (word, e.submit(fn, word, **kwargs))
+                for _ in range(n_runs))
+    results_by_word = defaultdict(list)
+    for word, f in futures:
+        results_by_word[word].append(f.result())
+    return results_by_word

@@ -20,18 +20,19 @@ def word_clusters_neighbours(w2v, word, n_senses, *, window):
 word_clusters_neighbours.threshold = 0.75
 
 
-def word_clusters_ctx(w2v, word, n_senses, min_weight=1.5, min_count=20, *,
+def word_clusters_ctx(w2v, word, n_senses, min_weight=1.5, min_count=10, *,
                       window):
     weights, contexts = utils.weights_contexts(word, window)
     words = [
         w for w, cnt in Counter(w for ctx in contexts for w in ctx).items()
         if cnt >= min_count and weights.get(w, 0) > min_weight and w in w2v]
+    print(len(words))
     w2v_vecs = np.array([w2v[w] for w in words])
     km = kmeans.KMeans(w2v_vecs, k=n_senses, metric='cosine', verbose=0)
     words = np.array(words)
     return words, km
 
-word_clusters_ctx.threshold = 0.50
+word_clusters_ctx.threshold = 0.55
 
 
 def print_senses(w2v, sense_words, topn=5):
@@ -40,8 +41,9 @@ def print_senses(w2v, sense_words, topn=5):
         print(sense_id, ' '.join(words[:topn]), sep='\t')
 
 
-def run_all(*, clustering, model, word, n_runs, n_senses, window):
+def run_all(*, clustering, model, word, n_runs, n_senses, window, compact):
     clustering_fn = globals()['word_clusters_' + clustering]
+    print('threshold', clustering_fn.threshold, sep='\t')
     w2v = Word2Vec.load(model)
     words = [word] if word else utils.all_words
     for word in words:
@@ -52,11 +54,12 @@ def run_all(*, clustering, model, word, n_runs, n_senses, window):
             sense_words = {
                 sense_id: list(words[km.Xtocentre == sense_id])
                 for sense_id in range(n_senses)}
-            print_senses(w2v, sense_words)
-            utils.print_cluster_sim(km.centres)
             mapping = utils.merge_clusters(
                 km.centres, threshold=clustering_fn.threshold)
-            print(mapping)
+            if not compact:
+                print_senses(w2v, sense_words)
+                utils.print_cluster_sim(km.centres)
+                print(mapping)
             merged_sense_words = defaultdict(list)
             for sense_id, words in sense_words.items():
                 merged_sense_words[mapping[sense_id]].extend(words)
@@ -71,6 +74,7 @@ def main():
     arg('--n-runs', type=int, default=1)
     arg('--model', default='model.pkl')
     arg('--window', type=int, default=10)
+    arg('--compact', action='store_true')
     arg('--word')
     params = vars(parser.parse_args())
     print(params)

@@ -75,6 +75,13 @@ def load_weights(root, word):
         return {w: float(weight) for w, weight in (l.split() for l in f)}
 
 
+def print_senses(sense_words, topn=5):
+    for sense_id, words in sorted(sense_words.items()):
+        words = list(words)
+        words.sort(key=lambda x: x[1], reverse=True)
+        print(sense_id, ' '.join(w for w, _ in words[:topn]), sep='\t')
+
+
 def print_cluster_sim(centers):
     sim_matrix = cosine_similarity(centers, centers)
     print('\t'.join('{}'.format(j) for j, _ in enumerate(sim_matrix)))

@@ -35,12 +35,6 @@ def word_clusters_ctx(w2v, word, n_senses, min_weight=1.5, min_count=10, *,
 word_clusters_ctx.threshold = 0.55
 
 
-def print_senses(w2v, sense_words, topn=5):
-    for sense_id, words in sorted(sense_words.items()):
-        words.sort(key=lambda w: w2v.vocab[w].count, reverse=True)
-        print(sense_id, ' '.join(words[:topn]), sep='\t')
-
-
 def run_all(*, clustering, model, word, n_runs, n_senses, window, compact):
     clustering_fn = globals()['word_clusters_' + clustering]
     print('threshold', clustering_fn.threshold, sep='\t')
@@ -51,19 +45,20 @@ def run_all(*, clustering, model, word, n_runs, n_senses, window, compact):
         print(word)
         for _ in range(n_runs):
             words, km = clustering_fn(w2v, word, n_senses, window=window)
-            sense_words = {
-                sense_id: list(words[km.Xtocentre == sense_id])
+            sense_words = {sense_id: [
+                    (w, w2v.vocab[w].count)
+                    for w in words[km.Xtocentre == sense_id]]
                 for sense_id in range(n_senses)}
             mapping = utils.merge_clusters(
                 km.centres, threshold=clustering_fn.threshold)
             if not compact:
-                print_senses(w2v, sense_words)
+                utils.print_senses(sense_words)
                 utils.print_cluster_sim(km.centres)
                 print(mapping)
             merged_sense_words = defaultdict(list)
             for sense_id, words in sense_words.items():
                 merged_sense_words[mapping[sense_id]].extend(words)
-            print_senses(w2v, merged_sense_words)
+            utils.print_senses(merged_sense_words)
 
 
 def main():

@@ -37,7 +37,7 @@ word_clusters_ctx.threshold = 0.50
 def print_senses(w2v, sense_words, topn=5):
     for sense_id, words in sorted(sense_words.items()):
         words.sort(key=lambda w: w2v.vocab[w].count, reverse=True)
-        print(sense_id, ' '.join(words[:topn]))
+        print(sense_id, ' '.join(words[:topn]), sep='\t')
 
 
 def run_all(*, clustering, model, word, n_runs, n_senses, window):

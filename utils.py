@@ -77,11 +77,11 @@ def load_weights(root, word):
 
 def print_cluster_sim(centers):
     sim_matrix = cosine_similarity(centers, centers)
-    print(' '.join('{}   '.format(j) for j, _ in enumerate(sim_matrix)))
+    print('\t'.join('{}'.format(j) for j, _ in enumerate(sim_matrix)))
     for i, row in enumerate(sim_matrix):
-        print(' '.join(
-            ('{:.2f}'.format(x) if i < j else '    ')
-            for j, x in enumerate(row)), i)
+        print('\t'.join(
+            ('{:.2f}'.format(x) if i < j else ' ')
+            for j, x in enumerate(row)), i, sep='\t')
 
 
 def merge_clusters(centers, threshold):

@@ -5,6 +5,7 @@ import random
 import os.path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 
 import numpy as np
 from gensim import corpora
@@ -19,34 +20,37 @@ import utils
 
 def word_lda(word, num_topics, window, limit=None, min_weight=1.0):
     weights, contexts = utils.weights_contexts(word, window)
-    weights_flt = lambda ctx: \
-        [w for w in ctx if weights.get(w, 0) > min_weight]
+    weights_flt = partial(_weights_flt, weights, min_weight)
     contexts = [ctx for ctx in map(weights_flt, contexts) if ctx]
     random.shuffle(contexts)
     if limit:
         contexts = contexts[:limit]
+    print(len(contexts))
     dictionary = corpora.Dictionary(contexts)
     corpus = [dictionary.doc2bow(ctx) for ctx in contexts]
-
-    #lda = HdpModel(corpus, id2word=dictionary)
     lda = LdaModel(
         corpus, id2word=dictionary, num_topics=num_topics,
         passes=4, iterations=100, alpha='auto')
+    return lda, dictionary, weights_flt
 
+
+def _weights_flt(weights, min_weight, ctx):
+    return [w for w in ctx if weights.get(w, 0) > min_weight]
+
+
+def get_scores(lda, dictionary, word, weights_flt):
     labeled_fname = rl_wsd_labeled.contexts_filename('nouns', 'RuTenTen', word)
     if os.path.exists(labeled_fname):
         _senses, contexts = rl_wsd_labeled.get_contexts(labeled_fname)
         documents = [dictionary.doc2bow(weights_flt(utils.normalize(ctx)))
-                    for ctx, _ in contexts]
+                     for ctx, _ in contexts]
         gamma, _ = lda.inference(documents)
         pred_topics = gamma.argmax(axis=1)
         true_labels = np.array([int(ans) for _, ans in contexts])
 
         ari = adjusted_rand_score(true_labels, pred_topics)
         v_score = v_measure_score(true_labels, pred_topics)
-    else:
-        ari = v_score = None
-    return lda, dictionary, ari, v_score
+        return ari, v_score
 
 
 def print_topics(lda, dictionary, topn=5):
@@ -82,10 +86,12 @@ def run_all(*, word, n_runs, limit, n_senses, window):
         print()
         print(word)
         word_aris, word_v_scores = [], []
-        for lda, dictionary, ari, v_score in results:
+        for lda, dictionary, weights_flt in results:
             print_topics(lda, dictionary)
             print_cluster_sim(lda, dictionary)
-            if ari is not None and v_score is not None:
+            scores = get_scores(lda, dictionary, word, weights_flt)
+            if scores:
+                ari, v_score = scores
                 print('ARI: {:.3f}, V-score: {:.3f}'.format(ari, v_score))
                 word_aris.append(ari)
                 word_v_scores.append(v_score)

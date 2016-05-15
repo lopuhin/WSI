@@ -125,7 +125,7 @@ def weights_flt(weights, min_weight, ctx):
 def prepare_corpus(word, *, window, min_weight=1.0, limit=None):
     weights, contexts = weights_contexts(word, window)
     _weights_flt = partial(weights_flt, weights, min_weight)
-    contexts = [ctx for ctx in map(weights_flt, contexts) if ctx]
+    contexts = [ctx for ctx in map(_weights_flt, contexts) if ctx]
     random.shuffle(contexts)
     if limit:
         contexts = contexts[:limit]

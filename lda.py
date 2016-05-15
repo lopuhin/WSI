@@ -51,7 +51,7 @@ def run_all(*, word, n_runs, limit, n_senses, window):
     words = [word] if word else utils.all_words
     results_by_word = utils.apply_to_words(
         word_lda, words, n_runs,
-        n_senses=n_senses, limit=limit, window=window)
+        num_topics=n_senses, limit=limit, window=window)
     merge_threshold = 0.2
     print('threshold', merge_threshold, sep='\t')
     aris, v_scores = [], []

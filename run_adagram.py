@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 import json
+import argparse
 
 
 def main():
-    with open('adagram.json') as f:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
+    args = parser.parse_args()
+    with open(args.filename) as f:
         data = json.load(f)
     for word, senses in sorted(data.items()):
         print()
